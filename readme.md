@@ -11,7 +11,7 @@ We have provided the `config.json` file in the `premodel` folder. Please use the
 
 ### Ablation study
 
-![](C:/Users/LYX/Desktop/as.png)
+![](https://github.com/YuxiangLee1224/Prompt4NER/blob/master/as.png)
 
 To analyze the effectiveness of hard prompts and delayed soft prompts, we conducted the follow-
 ing experiments separately: 1):baseline w/ MRC prompts; 2):baseline w/ soft prompts; 3):baseline w/ late soft prompts;
