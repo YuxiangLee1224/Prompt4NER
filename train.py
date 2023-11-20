@@ -54,6 +54,7 @@ def generate(model, tokenizer, batch_prompt_in, encoded_raw_sent, each_in_length
             for i, j in enumerate(each_in_length):
                 t.append(logits[i].narrow(dim=0, start=j + 4, length=1))
 
+            # Constrained Text Generation
             next_token_logits = torch.cat(t, dim=0)
             next_token_logits = torch.gather(next_token_logits, 1, encoded_raw_sent)
             next_token = torch.argmax(next_token_logits, dim=-1)
