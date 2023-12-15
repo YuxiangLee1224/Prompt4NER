@@ -1,19 +1,3 @@
-# Copyright 2022 PromptSlotTagging.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# We only made modifications to the code used in the ”do-test“ and the main function.
-
 import argparse
 import os
 import random
@@ -113,7 +97,7 @@ def finetune_on_support(args, test_model, optimizer, scheduler, dataloader, logg
         total_step, update_step = 0, 0
         for id, data in enumerate(dataloader):
             batch_prompt_in, batch_prompt_out, batch_masked_prompt_out, batch_attention_mask, batch_raw_sent, batch_in_length = data
-            # model.forward()
+
             outputs = test_model(input_ids=batch_prompt_out, labels=batch_masked_prompt_out,
                                  attention_mask=batch_attention_mask)
             loss = outputs[0]
@@ -150,7 +134,6 @@ def finetune_on_support(args, test_model, optimizer, scheduler, dataloader, logg
 
 def generate_procedure(args, test_model, tokenizer, test_test_dataloader):
     print('generating...')
-    # stage 1 gen
     last_sent = ''
     all_raw_lines, all_label_lines, all_results_lines = [], [], []
     domain_name = ''
@@ -176,13 +159,9 @@ def generate_procedure(args, test_model, tokenizer, test_test_dataloader):
             if out.split('"')[1] != last_sent or count > label_num and count % label_num == 1:
                 all_label_lines.append('\n')
 
-            # 后缀使用
-            # label = label_map[domain_name][out.split('"')[-1].split('refers to')[0].split(".")[-1].strip()]
-
             label = label_map[domain_name][out.split('"')[-1].split('refers to')[0].strip()]
             all_label_lines.append(label)
-            # 每句话都加了 label refers to .. 所以label_num内的raw_sent是相同的
-            # * out.split('"')[1]  是原句
+
             if out.split('"')[1] != last_sent or count > label_num and count % label_num == 1:
                 raw = out.split('"')[1].strip()
                 all_raw_lines.append(raw)
@@ -262,13 +241,13 @@ def test(args, model, tokenizer, logger, test_data):
                                                  tokenizer)
         test_test_episode = DevTestEpisode(test_encoded_prompt_in, test_encoded_prompt_out,
                                            test_encoded_raw_sent, test_mask_encoded_prompt_out, tokenizer)
-        # test_support_dataloader 117， test_test_dataloader 2243
+
         test_support_dataloader = DataLoader(dataset=test_support_episode, batch_size=2, shuffle=True,
                                              collate_fn=devcollate)
         test_test_dataloader = DataLoader(dataset=test_test_episode, batch_size=args.gen_batch_size,
                                           collate_fn=devcollate)
 
-        # prepare first-round optimizer and scheduler
+
         if args.max_finetune_steps > 0:
             total = args.max_finetune_steps
             args.num_finetune_epochs = args.max_finetune_steps // (
@@ -294,18 +273,17 @@ def test(args, model, tokenizer, logger, test_data):
         scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_rate * total,
                                                      num_training_steps=total)
 
-        # first-round finetune on the support set  N * K 117
+
         finetune_on_support(args=args, test_model=model, optimizer=optimizer, scheduler=scheduler,
                             dataloader=test_support_dataloader, logger=logger)
 
         generate_procedure(args, model, tokenizer, test_test_dataloader)
 
-    _, _, test_score1 = eval(result_path=args.pred_path + args.test_file + '/result1.txt',
+    _, _, test_score = eval(result_path=args.pred_path + args.test_file + '/result1.txt',
                              label_path=args.pred_path + args.test_file + '/label1.txt',
                              tar_path=args.pred_path + args.test_file + '/tar1.txt',
                              raw_path=args.pred_path + args.test_file + '/raw1.txt', mode='test', args=args)
-    # _,_,test_score2 = eval(result_path=args.pred_path+args.test_file+'/result.txt',label_path =args.pred_path+args.test_file+'/label.txt',tar_path = args.pred_path+args.test_file+'/tar.txt',raw_path=args.pred_path+args.test_file+'/raw.txt',mode='test',args=args)
-    return test_score1
+    return test_score
 
 def model_selection(args, model, cpt_file, tokenizer, logger, best_score, dev_data):
     dev_dataset = DevDataset(dev_data, tokenizer)
@@ -507,10 +485,9 @@ def save_model(finetune, args, logger, model, tokenizer, train_file, time):
         os.makedirs(model_output_dir)
     logger.info("\nSaving the model to {}\n".format(os.path.join(model_output_dir)))
 
-    # Save a trained model, configuration and tokenizer
     model_to_save = model.module if hasattr(model, 'module') else model  # Only save the model it-self
 
-    # If we save using the predefined names, we can load using `from_pretrained`
+
     output_model_file = os.path.join(model_output_dir, WEIGHTS_NAME)
     output_config_file = os.path.join(model_output_dir, CONFIG_NAME)
 
@@ -526,7 +503,6 @@ def main():
         os.mkdir(args.pred_path)
     if not os.path.exists(args.pred_path + args.test_file):
         os.mkdir(args.pred_path + args.test_file)
-    # Get ready...
     logging.basicConfig(filename=args.log_output_path,
                         format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                         datefmt='%m/%d/%Y %H:%M:%S',
@@ -544,16 +520,12 @@ def main():
     logger.info("device: {}, n_gpu {}".format(args.device, n_gpu))
 
     # tokenizer & model
-
     tokenizer = GPT2Tokenizer.from_pretrained("gpt2_s")
     bos_token, eos_token, unk_token = tokenizer.special_tokens_map['bos_token'], \
                                       tokenizer.special_tokens_map['eos_token'], \
                                       tokenizer.special_tokens_map['unk_token']
     bos_token_id, eos_token_id, unk_token_id = tokenizer.convert_tokens_to_ids([bos_token, eos_token, unk_token])
 
-    # Initialize GPT2LM with soft prompt
-
-    # tokenizer.add_special_tokens({'pad_token': '0'})
 
     model = GPT2ForPromptTuning.from_pretrained("gpt2_s").to(args.device)
     model.transformer.add_prompt_generator()
